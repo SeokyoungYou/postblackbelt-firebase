@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy:algo": "firebase deploy --only functions:syncToAlgolia",
+    "local:functions": "firebase serve --only functions",
+    "emulator": "firebase emulators:start --only firestore"
   },
   "repository": {
     "type": "git",
@@ -15,5 +18,9 @@
   "bugs": {
     "url": "https://github.com/SeokyoungYou/postblackbelt-firebase/issues"
   },
-  "homepage": "https://github.com/SeokyoungYou/postblackbelt-firebase#readme"
+  "homepage": "https://github.com/SeokyoungYou/postblackbelt-firebase#readme",
+  "dependencies": {
+    "firebase": "^10.11.1",
+    "firebase-admin": "^12.1.0"
+  }
 }
