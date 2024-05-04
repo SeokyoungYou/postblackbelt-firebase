@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "diaryV2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "techCategory",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "diaryV2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "techCategory",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
