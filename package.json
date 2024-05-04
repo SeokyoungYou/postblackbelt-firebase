@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "deploy:algo": "firebase deploy --only functions:syncToAlgolia",
     "local:functions": "firebase serve --only functions",
-    "emulator": "firebase emulators:start --only firestore"
+    "em:setup": "firebase setup:emulators:firestore",
+    "em": "firebase emulators:start --only functions,firestore"
   },
   "repository": {
     "type": "git",

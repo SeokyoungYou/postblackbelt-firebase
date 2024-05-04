@@ -6,7 +6,7 @@ const { algoliaConfig } = require("../config");
 admin.initializeApp();
 
 const algoliaClient = algoliasearch(algoliaConfig.appId, algoliaConfig.apiKey);
-const algoliaIndex = algoliaClient.initIndex(algoliaClient.indexName);
+const algoliaIndex = algoliaClient.initIndex(algoliaConfig.indexName);
 const region = "asia-northeast3";
 
 exports.syncToAlgolia = functions
@@ -18,12 +18,18 @@ exports.syncToAlgolia = functions
     const diaryId = context.params.diaryId;
     const objectID = `${userEmail}__id:${diaryId}`;
 
-    if (data) {
+    console.log(`Processing document with ID: ${objectID}`);
+
+    if (data && (data.title || data.content)) {
+      // Check if title or content exists
+      console.log(`Data to be indexed:`, data);
+
       const indexedData = {
         objectID: objectID,
+        diaryId: diaryId,
         userEmail: userEmail,
-        title: data.title, // 인덱싱할 'title' 필드 추가
-        content: data.content, // 인덱싱할 'content' 필드 추가
+        title: data.title, // Use empty string if title does not exist
+        content: data.content, // Use empty string if content does not exist
       };
 
       return algoliaIndex
@@ -40,16 +46,22 @@ exports.syncToAlgolia = functions
           );
         });
     } else {
-      return algoliaIndex
-        .deleteObject(objectID)
-        .then(() => console.log(`Document ${objectID} deleted from Algolia`))
-        .catch((error) => {
-          console.error("Error when deleting document from Algolia", error);
-          throw new functions.https.HttpsError(
-            "internal",
-            "Unable to delete document from Algolia",
-            error
-          );
-        });
+      console.log(
+        `Document ${objectID} does not contain title or content and will not be indexed.`
+      );
+      if (!data) {
+        // If document was deleted
+        return algoliaIndex
+          .deleteObject(objectID)
+          .then(() => console.log(`Document ${objectID} deleted from Algolia`))
+          .catch((error) => {
+            console.error("Error when deleting document from Algolia", error);
+            throw new functions.https.HttpsError(
+              "internal",
+              "Unable to delete document from Algolia",
+              error
+            );
+          });
+      }
     }
   });
