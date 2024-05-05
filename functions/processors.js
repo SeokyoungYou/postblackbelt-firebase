@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.valueProcessor = exports.dataProcessor = void 0;
+exports.valueProcessor = exports.dataProcessor = exports.processObject = void 0;
 /*
  * Copyright 2021 Algolia
  *
@@ -29,6 +29,7 @@ const processObject = (objectVal) => {
     }
     return payload;
 };
+exports.processObject = processObject;
 const processValue = (field, value) => {
     if (value instanceof firestore_1.DocumentReference) {
         return [field, processDocumentReference(value)];
@@ -44,7 +45,7 @@ const processValue = (field, value) => {
         return [field, processArray(value)];
     }
     else if (value instanceof Object) {
-        return [field, processObject(value)];
+        return [field, (0, exports.processObject)(value)];
     }
     return [field, value];
 };
@@ -76,7 +77,7 @@ const processGeoPoint = (geoPointVal) => {
  * @param data
  */
 const dataProcessor = (data) => {
-    return processObject(data);
+    return (0, exports.processObject)(data);
 };
 exports.dataProcessor = dataProcessor;
 /**

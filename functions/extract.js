@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
+exports.extractFoFull = exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
+const processors_1 = require("./processors");
 const transform_1 = require("./transform");
 const util_1 = require("./util");
 const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
 const trim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
-const getPayload = (snapshot) => {
+const getPayload = async (snapshot) => {
     let payload = {
         title: snapshot.get("title"),
         content: snapshot.get("content"),
@@ -70,16 +71,28 @@ const getAdditionalAlgoliaDataFullIndex = (context, docId) => {
 exports.getAdditionalAlgoliaDataFullIndex = getAdditionalAlgoliaDataFullIndex;
 async function extract(snapshot, context) {
     // Check payload size and make sure its within limits before sending for indexing
-    const payload = (0, exports.getPayload)(snapshot);
+    const payload = await (0, exports.getPayload)(snapshot);
     const additionalData = getAdditionalAlgoliaData(context);
-    if ((0, util_1.getObjectSizeInBytes)(payload) < PAYLOAD_MAX_SIZE) {
-        return {
-            ...payload,
-            ...additionalData,
-        };
+    const result = {
+        ...payload,
+        ...additionalData,
+    };
+    // FIXME: 넘어가면 content 빼기
+    if ((0, util_1.getObjectSizeInBytes)(result) < PAYLOAD_MAX_SIZE) {
+        return result;
     }
     else {
         throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
     }
 }
 exports.default = extract;
+async function extractFoFull(data) {
+    const result = (0, processors_1.processObject)(data);
+    if ((0, util_1.getObjectSizeInBytes)(result) < PAYLOAD_MAX_SIZE) {
+        return result;
+    }
+    else {
+        throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
+    }
+}
+exports.extractFoFull = extractFoFull;

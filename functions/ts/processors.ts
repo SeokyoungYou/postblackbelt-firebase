@@ -21,7 +21,7 @@ import {
 } from "firebase-admin/firestore";
 import { isValidValue } from "./util";
 
-const processObject = (objectVal) => {
+export const processObject = (objectVal) => {
   const payload = {};
   for (const [key, val] of Object.entries(objectVal)) {
     const [field, value] = processValue(key, val);

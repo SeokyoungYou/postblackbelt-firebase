@@ -19,6 +19,10 @@ const config = {
   location: "asia-northeast3",
   algoliaAppId: process.env.MY_APP_ALGOLIA_APP_ID || "",
   algoliaAPIKey: process.env.MY_APP_ALGOLIA_API_KEY || "",
+  algoliaAPIKeyExecuteIndexOperation:
+    process.env.MY_APP_ALGOLIA_API_KEY_EXECUTE_INDEX_OPERATION || "",
+  algoliaAPIKeyStartFullIndexByUser:
+    process.env.MY_APP_ALGOLIA_API_KEY_START_FULLINDEX_BYUSER || "",
   algoliaIndexName: process.env.MY_APP_ALGOLIA_INDEX_NAME || "",
   databaseId: "(default)",
   collectionPath: "/diarysV2/{userEmail}/diaryV2/{diaryId}", //diaryId 빼야하나?

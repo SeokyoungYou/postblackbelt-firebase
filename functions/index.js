@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startFullIndexByUser = exports.executeIndexOperation = exports.index = void 0;
+exports.startFullIndexByUser = exports.executeIndexOperation = exports.indexStartFullIndex = exports.indexExecuteIndex = void 0;
 const algoliasearch_1 = require("algoliasearch");
 const functions = require("firebase-functions");
 const firestore_1 = require("firebase-admin/firestore");
@@ -28,9 +28,12 @@ const util_1 = require("./util");
 const version_1 = require("./version");
 const logs = require("./logs");
 const DOCS_PER_INDEXING = 250;
-const client = (0, algoliasearch_1.default)(config_1.default.algoliaAppId, config_1.default.algoliaAPIKey);
-client.addAlgoliaAgent("firestore_integration", version_1.version);
-exports.index = client.initIndex(config_1.default.algoliaIndexName);
+const clientExecuteIndex = (0, algoliasearch_1.default)(config_1.default.algoliaAppId, config_1.default.algoliaAPIKeyExecuteIndexOperation);
+clientExecuteIndex.addAlgoliaAgent("firestore_integration", version_1.version);
+exports.indexExecuteIndex = clientExecuteIndex.initIndex(config_1.default.algoliaIndexName);
+const clientStartFullIndex = (0, algoliasearch_1.default)(config_1.default.algoliaAppId, config_1.default.algoliaAPIKeyStartFullIndexByUser);
+clientStartFullIndex.addAlgoliaAgent("firestore_integration", version_1.version);
+exports.indexStartFullIndex = clientStartFullIndex.initIndex(config_1.default.algoliaIndexName);
 firebase.initializeApp();
 const db = (0, firestore_1.getFirestore)(config_1.default.databaseId);
 logs.init();
@@ -41,7 +44,9 @@ const handleCreateDocument = async (snapshot, context) => {
             ...data,
         });
         logs.createIndex(snapshot.id, data);
-        await exports.index.partialUpdateObject(data, { createIfNotExists: true });
+        await exports.indexExecuteIndex.partialUpdateObject(data, {
+            createIfNotExists: true,
+        });
     }
     catch (e) {
         logs.error(e);
@@ -62,7 +67,9 @@ const handleUpdateDocument = async (before, after, context) => {
                 const data = await (0, extract_1.default)(after, context);
                 logs.updateIndex(after.id, data);
                 logs.debug("execute partialUpdateObject");
-                await exports.index.partialUpdateObject(data, { createIfNotExists: true });
+                await exports.indexExecuteIndex.partialUpdateObject(data, {
+                    createIfNotExists: true,
+                });
             }
             // if an attribute was removed, then use save object of the record.
             else {
@@ -71,7 +78,7 @@ const handleUpdateDocument = async (before, after, context) => {
                 undefinedAttrs.forEach((attr) => delete data[attr]);
                 logs.updateIndex(after.id, data);
                 logs.debug("execute saveObject");
-                await exports.index.saveObject(data);
+                await exports.indexExecuteIndex.saveObject(data);
             }
         }
     }
@@ -82,7 +89,7 @@ const handleUpdateDocument = async (before, after, context) => {
 const handleDeleteDocument = async (deletedObjectID) => {
     try {
         logs.deleteIndex(deletedObjectID);
-        await exports.index.deleteObject(deletedObjectID);
+        await exports.indexExecuteIndex.deleteObject(deletedObjectID);
     }
     catch (e) {
         logs.error(e);
@@ -114,40 +121,51 @@ exports.executeIndexOperation = functions
 });
 exports.startFullIndexByUser = functions
     .region(config_1.default.location)
+    .runWith({
+    timeoutSeconds: 540, // Maximum timeout of 9 minutes
+    memory: "512MB", // Increase memory
+})
     .firestore.document(config_1.default.startAlgoliaCollectionPath)
     .onCreate(async (snap, context) => {
     logs.start();
-    const userEmail = context.params.userEmail; // 새로 등록된 이메일
+    const userEmail = context.params.userEmail;
+    logs.debug("Processing userEmail: " + userEmail);
     const collectionName = `diarysV2/${userEmail}/diaryV2`;
-    // 모든 문서를 색인하는 로직
+    logs.debug("Accessing Firestore collection: " + collectionName);
     const collectionRef = db.collection(collectionName);
     const snapshot = await collectionRef.get();
     if (snapshot.empty) {
-        console.log("No matching documents.");
+        console.log("No matching documents found in the collection.");
+        logs.warn("No documents to index for collection: " + collectionName);
         return;
     }
-    Promise.all(snapshot.docs.map(async (doc) => {
+    logs.info(`Found ${snapshot.docs.length} documents to index.`);
+    const indexUpdates = snapshot.docs.map(async (doc) => {
+        const documentId = doc.id;
+        logs.debug("Processing document ID: " + documentId);
         try {
-            const payload = (0, extract_1.getPayload)(doc);
-            const additionalData = (0, extract_1.getAdditionalAlgoliaDataFullIndex)(context, doc.id);
-            const data = {
+            const payload = await (0, extract_1.getPayload)(doc);
+            const additionalData = (0, extract_1.getAdditionalAlgoliaDataFullIndex)(context, documentId);
+            const result = await (0, extract_1.extractFoFull)({
                 ...payload,
                 ...additionalData,
-            };
-            logs.debug({
-                ...data,
             });
-            logs.createIndex(data.objectID, data);
-            await exports.index.partialUpdateObject(data, { createIfNotExists: true });
+            return result;
         }
         catch (e) {
             logs.error(e);
+            throw e; // Rethrow to handle in the outer catch block
         }
-    }))
-        .then(() => {
-        console.log("All documents have been processed successfully.");
-    })
-        .catch((error) => {
-        console.error("An error occurred while processing documents:", error);
     });
+    logs.info("Processing documents...", indexUpdates);
+    // TODO: 인덱싱 100개씩만 처리하도록 수정
+    try {
+        const results = await Promise.all(indexUpdates);
+        await exports.indexStartFullIndex.saveObjects(results);
+        logs.info("All documents indexed successfully.");
+    }
+    catch (e) {
+        console.error("An error occurred while processing documents: ", e);
+        logs.error(e);
+    }
 });

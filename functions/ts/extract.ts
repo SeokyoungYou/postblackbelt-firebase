@@ -18,7 +18,7 @@ import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore";
 
 import config from "./config";
 import * as logs from "./logs";
-import { dataProcessor, valueProcessor } from "./processors";
+import { dataProcessor, processObject, valueProcessor } from "./processors";
 import transform from "./transform";
 import { getObjectSizeInBytes, isValidValue } from "./util";
 import { EventContext } from "firebase-functions";
@@ -27,7 +27,7 @@ const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
 const trim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
 
-export const getPayload = (snapshot: DocumentSnapshot): Promise<any> => {
+export const getPayload = async (snapshot: DocumentSnapshot): Promise<any> => {
   let payload: {
     [key: string]: boolean | string | number;
   } = {
@@ -86,15 +86,29 @@ export default async function extract(
   context: EventContext
 ): Promise<any> {
   // Check payload size and make sure its within limits before sending for indexing
-  const payload = getPayload(snapshot);
+  const payload = await getPayload(snapshot);
 
   const additionalData = getAdditionalAlgoliaData(context);
 
-  if (getObjectSizeInBytes(payload) < PAYLOAD_MAX_SIZE) {
-    return {
-      ...payload,
-      ...additionalData,
-    };
+  const result = {
+    ...payload,
+    ...additionalData,
+  };
+
+  // FIXME: 넘어가면 content 빼기
+
+  if (getObjectSizeInBytes(result) < PAYLOAD_MAX_SIZE) {
+    return result;
+  } else {
+    throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
+  }
+}
+
+export async function extractFoFull(data: any): Promise<any> {
+  const result = processObject(data);
+
+  if (getObjectSizeInBytes(result) < PAYLOAD_MAX_SIZE) {
+    return result;
   } else {
     throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
   }

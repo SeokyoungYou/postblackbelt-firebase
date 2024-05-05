@@ -8,7 +8,7 @@
     "build": "npx tsc",
     "watch": "tsc --watch",
     "deploy:index": "npm run build && firebase deploy --only functions:executeIndexOperation",
-    "deploy:full": "firebase deploy --only functions:startFullIndexByUser",
+    "deploy:full": "npm run build && firebase deploy --only functions:startFullIndexByUser",
     "em:setup": "firebase setup:emulators:firestore",
     "emulators": "firebase emulators:start --only functions,firestore",
     "start": "concurrently \"npm run watch\" \"npm run emulators\""
