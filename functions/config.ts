@@ -15,19 +15,14 @@
  */
 
 const config = {
-  instanceId: process.env.EXT_INSTANCE_ID,
-  location: process.env.LOCATION,
-  algoliaAppId: process.env.ALGOLIA_APP_ID,
-  algoliaAPIKey: process.env.ALGOLIA_API_KEY,
-  algoliaIndexName: process.env.ALGOLIA_INDEX_NAME,
-  databaseId: process.env.DATABASE_ID,
-  collectionPath: process.env.COLLECTION_PATH,
-  fields: process.env.FIELDS,
-  forceDataSync: process.env.FORCE_DATA_SYNC == "yes",
+  location: "asia-northeast3",
+  algoliaAppId: process.env.MY_APP_ALGOLIA_APP_ID,
+  algoliaAPIKey: process.env.MY_APP_ALGOLIA_API_KEY,
+  algoliaIndexName: process.env.MY_APP_ALGOLIA_INDEX_NAME,
+  databaseId: "(default)",
+  collectionPath: "/diarysV2/{userEmail}/diaryV2/{diaryId}", //diaryId 빼야하나?
   transformFunction: process.env.TRANSFORM_FUNCTION,
-  projectId: process.env.PROJECT_ID,
-  doFullIndexing: process.env.DO_FULL_INDEXING == "true",
-  altObjectId: process.env.ALT_OBJECT_ID,
+  projectId: process.env.MY_APP_FIREBASE_PROJECT_ID,
 };
 
 export type Config = typeof config;

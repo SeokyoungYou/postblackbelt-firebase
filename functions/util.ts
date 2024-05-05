@@ -41,15 +41,14 @@ export const getObjectSizeInBytes = (object: [] | {}) => {
   return recordBuffer.byteLength;
 };
 
-export const getFields = (config: Pick<Config, "fields">) =>
-  config.fields ? config.fields.split(/[ ,]+/) : [];
+export const getFields = () => ["title", "content"];
 
 export const areFieldsUpdated = (
   config: Config,
   before: DocumentSnapshot,
   after: DocumentSnapshot
 ) => {
-  const fields = getFields(config);
+  const fields = getFields();
 
   logs.debug(`fields: ${fields}`);
   // If fields are not configured, then execute update record.

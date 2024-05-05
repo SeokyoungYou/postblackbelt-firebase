@@ -21,6 +21,7 @@ import * as logs from "./logs";
 import { dataProcessor, valueProcessor } from "./processors";
 import transform from "./transform";
 import { getFields, getObjectSizeInBytes, isValidValue } from "./util";
+import { EventContext } from "firebase-functions";
 
 const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
@@ -30,63 +31,60 @@ const getPayload = async (snapshot: DocumentSnapshot): Promise<any> => {
   let payload: {
     [key: string]: boolean | string | number;
   } = {
-    objectID: config.altObjectId
-      ? config.altObjectId === "(path)"
-        ? snapshot.ref.path
-        : snapshot.get(config.altObjectId)
-      : snapshot.id,
     path: snapshot.ref.path,
   };
 
-  const fields = getFields(config);
-  if (fields.length === 0) {
-    payload = {
-      ...dataProcessor(snapshot.data()),
-      ...payload,
-    };
-  } else {
-    // Fields have been defined by user.  Start pulling data from the document to create payload
-    // to send to Algolia.
-    fields.forEach((item) => {
-      const firebaseField = item.replace(trim, "");
-      const [field, value] = valueProcessor(
-        firebaseField,
-        snapshot.get(firebaseField)
-      );
+  const fields = getFields();
+  // Fields have been defined by user.  Start pulling data from the document to create payload
+  // to send to Algolia.
+  fields.forEach((item) => {
+    const firebaseField = item.replace(trim, "");
+    const [field, value] = valueProcessor(
+      firebaseField,
+      snapshot.get(firebaseField)
+    );
 
-      if (isValidValue(value)) {
-        payload[field] = value;
-      } else {
-        logs.fieldNotExist(firebaseField);
-      }
-    });
-  }
+    if (isValidValue(value)) {
+      payload[field] = value;
+    } else {
+      logs.fieldNotExist(firebaseField);
+    }
+  });
 
   // adding the objectId in the return to make sure to restore to original if changed in the post processing.
   return transform(payload);
 };
 
+const getAdditionalAlgoliaData = (context: EventContext) => {
+  const eventTimestamp = Date.parse(context.timestamp);
+  const userEmail = context.params.userEmail;
+  const diaryId = context.params.diaryId;
+  return {
+    objectID: `${userEmail}__id:${diaryId}`,
+    path: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
+    diaryId,
+    userEmail,
+    lastmodified: {
+      _operation: "IncrementSet",
+      value: eventTimestamp,
+    },
+  };
+};
+
 export default async function extract(
   snapshot: DocumentSnapshot,
-  timestamp: Number
+  context: EventContext
 ): Promise<any> {
   // Check payload size and make sure its within limits before sending for indexing
   const payload = await getPayload(snapshot);
 
+  const additionalData = getAdditionalAlgoliaData(context);
+
   if (getObjectSizeInBytes(payload) < PAYLOAD_MAX_SIZE) {
-    if (timestamp === 0) {
-      return {
-        ...payload,
-      };
-    } else {
-      return {
-        ...payload,
-        lastmodified: {
-          _operation: "IncrementSet",
-          value: timestamp,
-        },
-      };
-    }
+    return {
+      ...payload,
+      ...additionalData,
+    };
   } else {
     throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
   }
