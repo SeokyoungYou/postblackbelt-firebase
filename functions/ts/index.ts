@@ -60,7 +60,7 @@ const handleCreateDocument = async (
     logs.createIndex(snapshot.id, data);
     await index.partialUpdateObject(data, { createIfNotExists: true });
   } catch (e) {
-    logs.error(e);
+    logs.error(e as Error);
   }
 };
 
@@ -73,11 +73,13 @@ const handleUpdateDocument = async (
     if (areFieldsUpdated(config, before, after)) {
       logs.debug("Detected a change, execute indexing");
 
-      const beforeData: DocumentData = await before.data();
+      const beforeData: DocumentData | undefined = await before.data();
       // loop through the after data snapshot to see if any properties were removed
-      const undefinedAttrs = Object.keys(beforeData).filter(
-        (key) => after.get(key) === undefined || after.get(key) === null
-      );
+      const undefinedAttrs = beforeData
+        ? Object.keys(beforeData).filter(
+            (key) => after.get(key) === undefined || after.get(key) === null
+          )
+        : [];
       logs.debug("undefinedAttrs", undefinedAttrs);
       // if no attributes were removed, then use partial update of the record.
       if (undefinedAttrs.length === 0) {
@@ -99,16 +101,16 @@ const handleUpdateDocument = async (
       }
     }
   } catch (e) {
-    logs.error(e);
+    logs.error(e as Error);
   }
 };
 
-const handleDeleteDocument = async (deleted: DocumentSnapshot) => {
+const handleDeleteDocument = async (deletedObjectID: string) => {
   try {
-    logs.deleteIndex(deleted.id);
-    await index.deleteObject(deleted.id);
+    logs.deleteIndex(deletedObjectID);
+    await index.deleteObject(deletedObjectID);
   } catch (e) {
-    logs.error(e);
+    logs.error(e as Error);
   }
 };
 
@@ -121,12 +123,16 @@ export const executeIndexOperation = functions
     logs.start();
 
     const changeType = getChangeType(change);
+
     switch (changeType) {
       case ChangeType.CREATE:
         await handleCreateDocument(change.after, context);
         break;
       case ChangeType.DELETE:
-        await handleDeleteDocument(change.before);
+        const userEmail = context.params.userEmail;
+        const diaryId = context.params.diaryId;
+        const objectID = `diarysV2/${userEmail}/diaryV2/${diaryId}`;
+        await handleDeleteDocument(objectID);
         break;
       case ChangeType.UPDATE:
         await handleUpdateDocument(change.before, change.after, context);
@@ -142,15 +148,6 @@ export const executeIndexOperation = functions
 //   .onDispatch(async (data: any) => {
 //     const runtime = getExtensions().runtime();
 //     logs.init();
-//     logs.info("config.doFullIndexing", config.doFullIndexing);
-//     if (!config.doFullIndexing) {
-//       await runtime.setProcessingState(
-//         "PROCESSING_COMPLETE",
-//         'Existing documents were not indexed because "Indexing existing documents?" is configured to false. ' +
-//           "If you want to run a full reindex, reconfigure this instance."
-//       );
-//       return;
-//     }
 
 //     logs.info("config.collectionPath", config.collectionPath);
 //     const docId = data["docId"] ?? null;

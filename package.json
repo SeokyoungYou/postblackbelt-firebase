@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy:algo": "firebase deploy --only functions:transformDataForAlgolia",
+    "build": "npx tsc",
+    "deploy:index": "npm run build && firebase deploy --only functions:executeIndexOperation",
+    "deploy:email": "firebase deploy --only functions:executeIndexOperation",
     "local:functions": "firebase serve --only functions",
     "em:setup": "firebase setup:emulators:firestore",
     "em": "firebase emulators:start --only functions,firestore"
@@ -23,5 +25,9 @@
   "dependencies": {
     "firebase": "^10.11.1",
     "firebase-admin": "^12.1.0"
+  },
+  "devDependencies": {
+    "eslint-plugin-import": "^2.29.1",
+    "typescript": "^5.4.5"
   }
 }
