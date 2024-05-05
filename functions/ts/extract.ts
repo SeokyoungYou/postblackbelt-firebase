@@ -105,10 +105,8 @@ export default async function extract(
 }
 
 export async function extractFoFull(data: any): Promise<any> {
-  const result = processObject(data);
-
-  if (getObjectSizeInBytes(result) < PAYLOAD_MAX_SIZE) {
-    return result;
+  if (getObjectSizeInBytes(data) < PAYLOAD_MAX_SIZE) {
+    return data;
   } else {
     throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
   }

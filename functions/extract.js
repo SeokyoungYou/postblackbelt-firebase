@@ -16,7 +16,6 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractFoFull = exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
-const processors_1 = require("./processors");
 const transform_1 = require("./transform");
 const util_1 = require("./util");
 const PAYLOAD_MAX_SIZE = 102400;
@@ -87,9 +86,8 @@ async function extract(snapshot, context) {
 }
 exports.default = extract;
 async function extractFoFull(data) {
-    const result = (0, processors_1.processObject)(data);
-    if ((0, util_1.getObjectSizeInBytes)(result) < PAYLOAD_MAX_SIZE) {
-        return result;
+    if ((0, util_1.getObjectSizeInBytes)(data) < PAYLOAD_MAX_SIZE) {
+        return data;
     }
     else {
         throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);

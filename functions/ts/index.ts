@@ -31,7 +31,6 @@ import { firestore } from "firebase-admin";
 
 import config from "./config";
 import extract, {
-  extractFoFull,
   getAdditionalAlgoliaDataFullIndex,
   getObjectID,
   getPayload,
@@ -172,8 +171,8 @@ export const executeIndexOperation = functions
 export const startFullIndexByUser = functions
   .region(config.location)
   .runWith({
-    timeoutSeconds: 540, // Maximum timeout of 9 minutes
-    memory: "512MB", // Increase memory
+    timeoutSeconds: 540,
+    memory: "512MB",
   })
   .firestore.document(config.startAlgoliaCollectionPath)
   .onCreate(async (snap, context): Promise<void> => {
@@ -207,10 +206,18 @@ export const startFullIndexByUser = functions
           context,
           documentId
         );
-        const result = await extractFoFull({
+        const result = {
           ...payload,
           ...additionalData,
-        });
+        };
+        logs.debug("Processing document: " + result);
+
+        // if (getObjectSizeInBytes(data) < PAYLOAD_MAX_SIZE) {
+        //   return data;
+        // } else {
+        //   throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
+        // }
+
         return result;
       } catch (e) {
         logs.error(e as Error);
@@ -218,13 +225,15 @@ export const startFullIndexByUser = functions
       }
     });
 
-    logs.info("Processing documents...", indexUpdates);
-
-    // TODO: 인덱싱 100개씩만 처리하도록 수정
+    const results = await Promise.all(indexUpdates);
+    logs.info("Processing documents...", results);
 
     try {
-      const results = await Promise.all(indexUpdates);
-      await indexStartFullIndex.saveObjects(results);
+      // TODO: 인덱싱 100개씩만 처리하도록 수정
+
+      await indexStartFullIndex.partialUpdateObjects(results, {
+        createIfNotExists: true,
+      });
       logs.info("All documents indexed successfully.");
     } catch (e) {
       console.error("An error occurred while processing documents: ", e);

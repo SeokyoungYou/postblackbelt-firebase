@@ -122,8 +122,8 @@ exports.executeIndexOperation = functions
 exports.startFullIndexByUser = functions
     .region(config_1.default.location)
     .runWith({
-    timeoutSeconds: 540, // Maximum timeout of 9 minutes
-    memory: "512MB", // Increase memory
+    timeoutSeconds: 540,
+    memory: "512MB",
 })
     .firestore.document(config_1.default.startAlgoliaCollectionPath)
     .onCreate(async (snap, context) => {
@@ -146,10 +146,16 @@ exports.startFullIndexByUser = functions
         try {
             const payload = await (0, extract_1.getPayload)(doc);
             const additionalData = (0, extract_1.getAdditionalAlgoliaDataFullIndex)(context, documentId);
-            const result = await (0, extract_1.extractFoFull)({
+            const result = {
                 ...payload,
                 ...additionalData,
-            });
+            };
+            logs.debug("Processing document: " + result);
+            // if (getObjectSizeInBytes(data) < PAYLOAD_MAX_SIZE) {
+            //   return data;
+            // } else {
+            //   throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
+            // }
             return result;
         }
         catch (e) {
@@ -157,11 +163,13 @@ exports.startFullIndexByUser = functions
             throw e; // Rethrow to handle in the outer catch block
         }
     });
-    logs.info("Processing documents...", indexUpdates);
-    // TODO: 인덱싱 100개씩만 처리하도록 수정
+    const results = await Promise.all(indexUpdates);
+    logs.info("Processing documents...", results);
     try {
-        const results = await Promise.all(indexUpdates);
-        await exports.indexStartFullIndex.saveObjects(results);
+        // TODO: 인덱싱 100개씩만 처리하도록 수정
+        await exports.indexStartFullIndex.partialUpdateObjects(results, {
+            createIfNotExists: true,
+        });
         logs.info("All documents indexed successfully.");
     }
     catch (e) {
