@@ -19,7 +19,7 @@ exports.transformDataForAlgolia = functions
 
     // console.log(`Processing document with ID: ${objectID}`);
 
-    if (data) {
+    if (data && (data.title || data.content)) {
       const transformedData = {
         objectID: objectID,
         diaryId: diaryId,
