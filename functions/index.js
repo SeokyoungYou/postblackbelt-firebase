@@ -21,6 +21,7 @@ const algoliasearch_1 = require("algoliasearch");
 const functions = require("firebase-functions");
 const firestore_1 = require("firebase-admin/firestore");
 const firebase = require("firebase-admin");
+// import FieldPath = firestore.FieldPath;
 const config_1 = require("./config");
 const extract_1 = require("./extract");
 const util_1 = require("./util");
@@ -127,7 +128,7 @@ exports.startFullIndexByUser = functions
     }
     Promise.all(snapshot.docs.map(async (doc) => {
         try {
-            const payload = await (0, extract_1.getPayload)(doc);
+            const payload = (0, extract_1.getPayload)(doc);
             const additionalData = (0, extract_1.getAdditionalAlgoliaDataFullIndex)(context, doc.id);
             const data = {
                 ...payload,
@@ -136,8 +137,8 @@ exports.startFullIndexByUser = functions
             logs.debug({
                 ...data,
             });
-            logs.createIndex(doc.id, data);
-            await exports.index.partialUpdateObject({ objectID: doc.id, ...data }, { createIfNotExists: true });
+            logs.createIndex(data.objectID, data);
+            await exports.index.partialUpdateObject(data, { createIfNotExists: true });
         }
         catch (e) {
             logs.error(e);

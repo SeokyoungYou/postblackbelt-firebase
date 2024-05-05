@@ -27,12 +27,15 @@ const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
 const trim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
 
-export const getPayload = async (snapshot: DocumentSnapshot): Promise<any> => {
+export const getPayload = (snapshot: DocumentSnapshot): Promise<any> => {
   let payload: {
     [key: string]: boolean | string | number;
   } = {
     title: snapshot.get("title"),
     content: snapshot.get("content"),
+    diaryCategory: snapshot.get("diaryCategory"),
+    techCategory: snapshot.get("techCategory"),
+    link: snapshot.get("link"),
   };
 
   // adding the objectId in the return to make sure to restore to original if changed in the post processing.
@@ -68,7 +71,7 @@ export const getAdditionalAlgoliaDataFullIndex = (
   const userEmail = context.params.userEmail;
   const diaryId = docId;
   return {
-    objectID: getObjectID(context),
+    objectID: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
     diaryId,
     userEmail,
     lastmodified: {
@@ -83,7 +86,7 @@ export default async function extract(
   context: EventContext
 ): Promise<any> {
   // Check payload size and make sure its within limits before sending for indexing
-  const payload = await getPayload(snapshot);
+  const payload = getPayload(snapshot);
 
   const additionalData = getAdditionalAlgoliaData(context);
 

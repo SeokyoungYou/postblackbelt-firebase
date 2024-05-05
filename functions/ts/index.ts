@@ -27,7 +27,7 @@ import { getExtensions } from "firebase-admin/extensions";
 import { getFunctions } from "firebase-admin/functions";
 import * as firebase from "firebase-admin";
 import { firestore } from "firebase-admin";
-import FieldPath = firestore.FieldPath;
+// import FieldPath = firestore.FieldPath;
 
 import config from "./config";
 import extract, {
@@ -166,7 +166,8 @@ export const startFullIndexByUser = functions
     Promise.all(
       snapshot.docs.map(async (doc) => {
         try {
-          const payload = await getPayload(doc);
+          const payload = getPayload(doc);
+
           const additionalData = getAdditionalAlgoliaDataFullIndex(
             context,
             doc.id
@@ -180,11 +181,8 @@ export const startFullIndexByUser = functions
             ...data,
           });
 
-          logs.createIndex(doc.id, data);
-          await index.partialUpdateObject(
-            { objectID: doc.id, ...data },
-            { createIfNotExists: true }
-          );
+          logs.createIndex(data.objectID, data);
+          await index.partialUpdateObject(data, { createIfNotExists: true });
         } catch (e) {
           logs.error(e as Error);
         }
