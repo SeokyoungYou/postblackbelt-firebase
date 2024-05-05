@@ -15,22 +15,24 @@ exports.transformDataForAlgolia = functions
     const data = change.after.exists ? change.after.data() : null;
     const userEmail = context.params.userEmail;
     const diaryId = context.params.diaryId;
+    const path = `diarysV2/${userEmail}/diaryV2/${diaryId}`;
     const objectID = `${userEmail}__id:${diaryId}`;
 
-    // console.log(`Processing document with ID: ${objectID}`);
+    console.log(`Processing document with ID: ${objectID}`);
+    console.log(`Data to be transformed:`, data);
 
     if (data && (data.title || data.content)) {
       const transformedData = {
         objectID: objectID,
         diaryId: diaryId,
         userEmail: userEmail,
-        path: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
+        path,
         lastModified: Date.now(),
         title: data.title, // Provide default if missing
         content: data.content, // Provide default if missing
       };
 
-      // console.log(`Transformed data for Algolia:`, transformedData);
+      console.log(`Transformed data for Algolia:`, transformedData);
       return transformedData; // Returning the transformed data
     } else {
       console.log(`No data found or document was deleted.`);

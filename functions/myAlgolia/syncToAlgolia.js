@@ -1,7 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const algoliasearch = require("algoliasearch");
-const { algoliaConfig } = require("../config");
+const { algoliaConfig } = require("./config");
 
 admin.initializeApp();
 
