@@ -1,7 +1,10 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
-admin.initializeApp();
+// Initialize Firebase admin only if no apps have been initialized.
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
 
 const region = "asia-northeast3";
 
@@ -14,24 +17,23 @@ exports.transformDataForAlgolia = functions
     const diaryId = context.params.diaryId;
     const objectID = `${userEmail}__id:${diaryId}`;
 
-    console.log(`Processing document with ID: ${objectID}`);
+    // console.log(`Processing document with ID: ${objectID}`);
 
     if (data) {
-      // Construct the data structure for Algolia index
       const transformedData = {
         objectID: objectID,
         diaryId: diaryId,
         userEmail: userEmail,
         path: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
         lastModified: Date.now(),
-        title: data.title, // Provide a default value if the field is missing
-        content: data.content, // Provide a default value if the field is missing
+        title: data.title, // Provide default if missing
+        content: data.content, // Provide default if missing
       };
 
-      console.log(`Transformed data for Algolia:`, transformedData);
+      // console.log(`Transformed data for Algolia:`, transformedData);
       return transformedData; // Returning the transformed data
     } else {
       console.log(`No data found or document was deleted.`);
-      return null; // Returning null or appropriate response if no data to process
+      return null; // Returning null if no data to process
     }
   });
