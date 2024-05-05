@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getObjectID = void 0;
+exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
 const transform_1 = require("./transform");
 const util_1 = require("./util");
 const PAYLOAD_MAX_SIZE = 102400;
@@ -29,6 +29,7 @@ const getPayload = async (snapshot) => {
     // adding the objectId in the return to make sure to restore to original if changed in the post processing.
     return (0, transform_1.default)(payload);
 };
+exports.getPayload = getPayload;
 const getObjectID = (context) => {
     const userEmail = context.params.userEmail;
     const diaryId = context.params.diaryId;
@@ -49,9 +50,24 @@ const getAdditionalAlgoliaData = (context) => {
         },
     };
 };
+const getAdditionalAlgoliaDataFullIndex = (context, docId) => {
+    const eventTimestamp = Date.parse(context.timestamp);
+    const userEmail = context.params.userEmail;
+    const diaryId = docId;
+    return {
+        objectID: (0, exports.getObjectID)(context),
+        diaryId,
+        userEmail,
+        lastmodified: {
+            _operation: "IncrementSet",
+            value: eventTimestamp,
+        },
+    };
+};
+exports.getAdditionalAlgoliaDataFullIndex = getAdditionalAlgoliaDataFullIndex;
 async function extract(snapshot, context) {
     // Check payload size and make sure its within limits before sending for indexing
-    const payload = await getPayload(snapshot);
+    const payload = await (0, exports.getPayload)(snapshot);
     const additionalData = getAdditionalAlgoliaData(context);
     if ((0, util_1.getObjectSizeInBytes)(payload) < PAYLOAD_MAX_SIZE) {
         return {

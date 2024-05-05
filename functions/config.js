@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// test@naver.com
 Object.defineProperty(exports, "__esModule", { value: true });
 const config = {
     location: "asia-northeast3",

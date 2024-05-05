@@ -30,7 +30,11 @@ import { firestore } from "firebase-admin";
 import FieldPath = firestore.FieldPath;
 
 import config from "./config";
-import extract, { getObjectID } from "./extract";
+import extract, {
+  getAdditionalAlgoliaDataFullIndex,
+  getObjectID,
+  getPayload,
+} from "./extract";
 import { areFieldsUpdated, ChangeType, getChangeType } from "./util";
 import { version } from "./version";
 import * as logs from "./logs";
@@ -42,7 +46,7 @@ client.addAlgoliaAgent("firestore_integration", version);
 export const index = client.initIndex(config.algoliaIndexName);
 
 firebase.initializeApp();
-const firestoreDB = getFirestore(config.databaseId);
+const db = getFirestore(config.databaseId);
 
 logs.init();
 
@@ -140,38 +144,56 @@ export const executeIndexOperation = functions
       }
     }
   });
-// test@naver.com
 
 export const startFullIndexByUser = functions
   .region(config.location)
   .firestore.document(config.startAlgoliaCollectionPath)
   .onCreate(async (snap, context) => {
-    const userEmail = snap.data().email; // 새로 등록된 이메일
-    const collectionName = `/diarysV2/${userEmail}/diaryV2`;
+    logs.start();
+
+    const userEmail = context.params.userEmail; // 새로 등록된 이메일
+    const collectionName = `diarysV2/${userEmail}/diaryV2`;
 
     // 모든 문서를 색인하는 로직
-    const collectionRef = firestoreDB.collection(collectionName);
+    const collectionRef = db.collection(collectionName);
     const snapshot = await collectionRef.get();
 
-    console.log("snap", snap);
-    console.log("context", context);
-    console.log("collectionRef", collectionRef);
-    console.log("snapshot", snapshot);
+    if (snapshot.empty) {
+      console.log("No matching documents.");
+      return;
+    }
 
-    const docs = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      console.log("data", data);
-      data.objectID = doc.id; // Algolia에 필요한 objectID 설정
-      return data;
-    });
+    Promise.all(
+      snapshot.docs.map(async (doc) => {
+        try {
+          const payload = await getPayload(doc);
+          const additionalData = getAdditionalAlgoliaDataFullIndex(
+            context,
+            doc.id
+          );
+          const data = {
+            ...payload,
+            ...additionalData,
+          };
 
-    // // Algolia에 문서 색인
-    // return algoliaIndex
-    //   .saveObjects(docs)
-    //   .then(() => {
-    //     console.log("Documents indexed in Algolia");
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error indexing documents in Algolia", error);
-    //   });
+          logs.debug({
+            ...data,
+          });
+
+          logs.createIndex(doc.id, data);
+          await index.partialUpdateObject(
+            { objectID: doc.id, ...data },
+            { createIfNotExists: true }
+          );
+        } catch (e) {
+          logs.error(e as Error);
+        }
+      })
+    )
+      .then(() => {
+        console.log("All documents have been processed successfully.");
+      })
+      .catch((error) => {
+        console.error("An error occurred while processing documents:", error);
+      });
   });

@@ -31,7 +31,7 @@ const client = (0, algoliasearch_1.default)(config_1.default.algoliaAppId, confi
 client.addAlgoliaAgent("firestore_integration", version_1.version);
 exports.index = client.initIndex(config_1.default.algoliaIndexName);
 firebase.initializeApp();
-const firestoreDB = (0, firestore_1.getFirestore)(config_1.default.databaseId);
+const db = (0, firestore_1.getFirestore)(config_1.default.databaseId);
 logs.init();
 const handleCreateDocument = async (snapshot, context) => {
     try {
@@ -111,33 +111,42 @@ exports.executeIndexOperation = functions
         }
     }
 });
-// test@naver.com
 exports.startFullIndexByUser = functions
     .region(config_1.default.location)
     .firestore.document(config_1.default.startAlgoliaCollectionPath)
     .onCreate(async (snap, context) => {
-    const userEmail = snap.data().email; // 새로 등록된 이메일
-    const collectionName = `/diarysV2/${userEmail}/diaryV2`;
+    logs.start();
+    const userEmail = context.params.userEmail; // 새로 등록된 이메일
+    const collectionName = `diarysV2/${userEmail}/diaryV2`;
     // 모든 문서를 색인하는 로직
-    const collectionRef = firestoreDB.collection(collectionName);
+    const collectionRef = db.collection(collectionName);
     const snapshot = await collectionRef.get();
-    console.log("snap", snap);
-    console.log("context", context);
-    console.log("collectionRef", collectionRef);
-    console.log("snapshot", snapshot);
-    const docs = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        console.log("data", data);
-        data.objectID = doc.id; // Algolia에 필요한 objectID 설정
-        return data;
+    if (snapshot.empty) {
+        console.log("No matching documents.");
+        return;
+    }
+    Promise.all(snapshot.docs.map(async (doc) => {
+        try {
+            const payload = await (0, extract_1.getPayload)(doc);
+            const additionalData = (0, extract_1.getAdditionalAlgoliaDataFullIndex)(context, doc.id);
+            const data = {
+                ...payload,
+                ...additionalData,
+            };
+            logs.debug({
+                ...data,
+            });
+            logs.createIndex(doc.id, data);
+            await exports.index.partialUpdateObject({ objectID: doc.id, ...data }, { createIfNotExists: true });
+        }
+        catch (e) {
+            logs.error(e);
+        }
+    }))
+        .then(() => {
+        console.log("All documents have been processed successfully.");
+    })
+        .catch((error) => {
+        console.error("An error occurred while processing documents:", error);
     });
-    // // Algolia에 문서 색인
-    // return algoliaIndex
-    //   .saveObjects(docs)
-    //   .then(() => {
-    //     console.log("Documents indexed in Algolia");
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error indexing documents in Algolia", error);
-    //   });
 });
