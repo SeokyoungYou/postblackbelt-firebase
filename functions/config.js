@@ -24,5 +24,6 @@ const config = {
     collectionPath: "/diarysV2/{userEmail}/diaryV2/{diaryId}", //diaryId 빼야하나?
     transformFunction: process.env.TRANSFORM_FUNCTION,
     projectId: process.env.MY_APP_FIREBASE_PROJECT_ID || "",
+    startAlgoliaCollectionPath: "/algoliaUsers/{userEmail}",
 };
 exports.default = config;

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getObjectID = void 0;
 const transform_1 = require("./transform");
 const util_1 = require("./util");
 const PAYLOAD_MAX_SIZE = 102400;
@@ -28,12 +29,18 @@ const getPayload = async (snapshot) => {
     // adding the objectId in the return to make sure to restore to original if changed in the post processing.
     return (0, transform_1.default)(payload);
 };
+const getObjectID = (context) => {
+    const userEmail = context.params.userEmail;
+    const diaryId = context.params.diaryId;
+    return `diarysV2/${userEmail}/diaryV2/${diaryId}`;
+};
+exports.getObjectID = getObjectID;
 const getAdditionalAlgoliaData = (context) => {
     const eventTimestamp = Date.parse(context.timestamp);
     const userEmail = context.params.userEmail;
     const diaryId = context.params.diaryId;
     return {
-        objectID: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
+        objectID: (0, exports.getObjectID)(context),
         diaryId,
         userEmail,
         lastmodified: {

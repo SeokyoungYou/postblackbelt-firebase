@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.executeIndexOperation = exports.index = void 0;
+exports.startFullIndexByUser = exports.executeIndexOperation = exports.index = void 0;
 const algoliasearch_1 = require("algoliasearch");
 const functions = require("firebase-functions");
-// import { getExtensions } from "firebase-admin/extensions";
-// import { getFunctions } from "firebase-admin/functions";
+const firestore_1 = require("firebase-admin/firestore");
 const firebase = require("firebase-admin");
-// import FieldPath = firestore.FieldPath;
 const config_1 = require("./config");
 const extract_1 = require("./extract");
 const util_1 = require("./util");
 const version_1 = require("./version");
 const logs = require("./logs");
-// const DOCS_PER_INDEXING = 250;
+const DOCS_PER_INDEXING = 250;
 const client = (0, algoliasearch_1.default)(config_1.default.algoliaAppId, config_1.default.algoliaAPIKey);
 client.addAlgoliaAgent("firestore_integration", version_1.version);
 exports.index = client.initIndex(config_1.default.algoliaIndexName);
 firebase.initializeApp();
-// const firestoreDB = getFirestore(config.databaseId);
+const firestoreDB = (0, firestore_1.getFirestore)(config_1.default.databaseId);
 logs.init();
 const handleCreateDocument = async (snapshot, context) => {
     try {
@@ -102,9 +100,7 @@ exports.executeIndexOperation = functions
             await handleCreateDocument(change.after, context);
             break;
         case util_1.ChangeType.DELETE:
-            const userEmail = context.params.userEmail;
-            const diaryId = context.params.diaryId;
-            const objectID = `diarysV2/${userEmail}/diaryV2/${diaryId}`;
+            const objectID = (0, extract_1.getObjectID)(context);
             await handleDeleteDocument(objectID);
             break;
         case util_1.ChangeType.UPDATE:
@@ -115,101 +111,33 @@ exports.executeIndexOperation = functions
         }
     }
 });
-// export const executeFullIndexOperation = functions.tasks
-//   .taskQueue()
-//   .onDispatch(async (data: any) => {
-//     const runtime = getExtensions().runtime();
-//     logs.init();
-//     logs.info("config.doFullIndexing", config.doFullIndexing);
-//     if (!config.doFullIndexing) {
-//       await runtime.setProcessingState(
-//         "PROCESSING_COMPLETE",
-//         'Existing documents were not indexed because "Indexing existing documents?" is configured to false. ' +
-//           "If you want to run a full reindex, reconfigure this instance."
-//       );
-//       return;
-//     }
-//     logs.info("config.collectionPath", config.collectionPath);
-//     const docId = data["docId"] ?? null;
-//     const pastSuccessCount = (data["successCount"] as number) ?? 0;
-//     const pastErrorCount = (data["errorCount"] as number) ?? 0;
-//     // We also track the start time of the first invocation, so that we can report the full length at the end.
-//     const startTime = (data["startTime"] as number) ?? Date.now();
-//     let query: firebase.firestore.Query;
-//     logs.info(
-//       "Is Collection Group?",
-//       config.collectionPath.indexOf("/") !== -1
-//     );
-//     if (config.collectionPath.indexOf("/") === -1) {
-//       query = firestoreDB.collection(config.collectionPath);
-//     } else {
-//       query = firestoreDB.collectionGroup(
-//         config.collectionPath.split("/").pop()
-//       );
-//     }
-//     query = query.limit(DOCS_PER_INDEXING);
-//     logs.debug("docId?", docId);
-//     if (docId) {
-//       let queryCursor = query.where(FieldPath.documentId(), "==", docId);
-//       logs.debug("queryCursor?", queryCursor);
-//       const querySnapshot = await queryCursor.get();
-//       logs.debug("querySnapshot?", querySnapshot);
-//       logs.debug("querySnapshot.docs?", querySnapshot.docs);
-//       querySnapshot.docs.forEach((doc) => (query = query.startAfter(doc)));
-//     }
-//     logs.debug("query", query);
-//     const snapshot = await query.get();
-//     const promises = await Promise.allSettled(
-//       snapshot.docs.map((doc) => extract(doc, startTime))
-//     );
-//     logs.debug("promises.length", promises.length);
-//     (promises as any).forEach((v) => logs.info("v", v));
-//     const records = (promises as any)
-//       .filter((v) => v.status === "fulfilled")
-//       .map((v) => v.value);
-//     logs.info("records.length", records.length);
-//     const responses = await index.saveObjects(records, {
-//       autoGenerateObjectIDIfNotExist: true,
-//     });
-//     logs.debug("responses.objectIDs", responses.objectIDs);
-//     logs.info("responses.taskIDs", responses.taskIDs);
-//     const newSuccessCount = pastSuccessCount + records.length;
-//     const newErrorCount = pastErrorCount;
-//     if (snapshot.size === DOCS_PER_INDEXING) {
-//       const newCursor = snapshot.docs[snapshot.size - 1];
-//       const queue = getFunctions().taskQueue(
-//         `locations/${config.location}/functions/executeFullIndexOperation`,
-//         config.instanceId
-//       );
-//       await queue.enqueue({
-//         docId: newCursor.id,
-//         successCount: newSuccessCount,
-//         errorCount: newErrorCount,
-//         startTime: startTime,
-//       });
-//     } else {
-//       // No more documents to index, time to set the processing state.
-//       logs.fullIndexingComplete(newSuccessCount, newErrorCount);
-//       if (newErrorCount === 0) {
-//         return await runtime.setProcessingState(
-//           "PROCESSING_COMPLETE",
-//           `Successfully indexed ${newSuccessCount} documents in ${
-//             Date.now() - startTime
-//           }ms.`
-//         );
-//       } else if (newErrorCount > 0 && newSuccessCount > 0) {
-//         return await runtime.setProcessingState(
-//           "PROCESSING_WARNING",
-//           `Successfully indexed ${newSuccessCount} documents, ${newErrorCount} errors in ${
-//             Date.now() - startTime
-//           }ms. See function logs for specific error messages.`
-//         );
-//       }
-//       return await runtime.setProcessingState(
-//         "PROCESSING_FAILED",
-//         `Successfully indexed ${newSuccessCount} documents, ${newErrorCount} errors in ${
-//           Date.now() - startTime
-//         }ms. See function logs for specific error messages.`
-//       );
-//     }
-//   });
+// test@naver.com
+exports.startFullIndexByUser = functions
+    .region(config_1.default.location)
+    .firestore.document(config_1.default.startAlgoliaCollectionPath)
+    .onCreate(async (snap, context) => {
+    const userEmail = snap.data().email; // 새로 등록된 이메일
+    const collectionName = `/diarysV2/${userEmail}/diaryV2`;
+    // 모든 문서를 색인하는 로직
+    const collectionRef = firestoreDB.collection(collectionName);
+    const snapshot = await collectionRef.get();
+    console.log("snap", snap);
+    console.log("context", context);
+    console.log("collectionRef", collectionRef);
+    console.log("snapshot", snapshot);
+    const docs = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        console.log("data", data);
+        data.objectID = doc.id; // Algolia에 필요한 objectID 설정
+        return data;
+    });
+    // // Algolia에 문서 색인
+    // return algoliaIndex
+    //   .saveObjects(docs)
+    //   .then(() => {
+    //     console.log("Documents indexed in Algolia");
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error indexing documents in Algolia", error);
+    //   });
+});

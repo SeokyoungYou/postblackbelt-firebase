@@ -140,30 +140,38 @@ export const executeIndexOperation = functions
       }
     }
   });
+// test@naver.com
 
-exports.startFullIndexByUser = functions
+export const startFullIndexByUser = functions
   .region(config.location)
   .firestore.document(config.startAlgoliaCollectionPath)
   .onCreate(async (snap, context) => {
-    const newUserEmail = snap.data().email; // 새로 등록된 이메일
+    const userEmail = snap.data().email; // 새로 등록된 이메일
+    const collectionName = `/diarysV2/${userEmail}/diaryV2`;
 
     // 모든 문서를 색인하는 로직
-    const collectionRef = firestoreDB.collection(config.collectionPath);
+    const collectionRef = firestoreDB.collection(collectionName);
     const snapshot = await collectionRef.get();
+
+    console.log("snap", snap);
+    console.log("context", context);
+    console.log("collectionRef", collectionRef);
+    console.log("snapshot", snapshot);
 
     const docs = snapshot.docs.map((doc) => {
       const data = doc.data();
+      console.log("data", data);
       data.objectID = doc.id; // Algolia에 필요한 objectID 설정
       return data;
     });
 
-    // Algolia에 문서 색인
-    return algoliaIndex
-      .saveObjects(docs)
-      .then(() => {
-        console.log("Documents indexed in Algolia");
-      })
-      .catch((error) => {
-        console.error("Error indexing documents in Algolia", error);
-      });
+    // // Algolia에 문서 색인
+    // return algoliaIndex
+    //   .saveObjects(docs)
+    //   .then(() => {
+    //     console.log("Documents indexed in Algolia");
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error indexing documents in Algolia", error);
+    //   });
   });
