@@ -28,6 +28,11 @@ exports.syncToAlgolia = functions
         objectID: objectID,
         diaryId: diaryId,
         userEmail: userEmail,
+        path: `diarysV2/${userEmail}/diaryV2/${diaryId}`, // Constructed full document path
+        lastModified: {
+          _operation: "IncrementSet",
+          value: Date.now(),
+        },
         title: data.title, // Use empty string if title does not exist
         content: data.content, // Use empty string if content does not exist
       };
