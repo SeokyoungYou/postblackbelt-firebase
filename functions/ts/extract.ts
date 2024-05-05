@@ -39,12 +39,18 @@ const getPayload = async (snapshot: DocumentSnapshot): Promise<any> => {
   return transform(payload);
 };
 
+export const getObjectID = (context: EventContext) => {
+  const userEmail = context.params.userEmail;
+  const diaryId = context.params.diaryId;
+  return `diarysV2/${userEmail}/diaryV2/${diaryId}`;
+};
+
 const getAdditionalAlgoliaData = (context: EventContext) => {
   const eventTimestamp = Date.parse(context.timestamp);
   const userEmail = context.params.userEmail;
   const diaryId = context.params.diaryId;
   return {
-    objectID: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
+    objectID: getObjectID(context),
     diaryId,
     userEmail,
     lastmodified: {

@@ -30,7 +30,7 @@ import { firestore } from "firebase-admin";
 import FieldPath = firestore.FieldPath;
 
 import config from "./config";
-import extract from "./extract";
+import extract, { getObjectID } from "./extract";
 import { areFieldsUpdated, ChangeType, getChangeType } from "./util";
 import { version } from "./version";
 import * as logs from "./logs";
@@ -129,9 +129,7 @@ export const executeIndexOperation = functions
         await handleCreateDocument(change.after, context);
         break;
       case ChangeType.DELETE:
-        const userEmail = context.params.userEmail;
-        const diaryId = context.params.diaryId;
-        const objectID = `diarysV2/${userEmail}/diaryV2/${diaryId}`;
+        const objectID = getObjectID(context);
         await handleDeleteDocument(objectID);
         break;
       case ChangeType.UPDATE:
@@ -143,100 +141,29 @@ export const executeIndexOperation = functions
     }
   });
 
-// export const executeFullIndexOperation = functions.tasks
-//   .taskQueue()
-//   .onDispatch(async (data: any) => {
-//     const runtime = getExtensions().runtime();
-//     logs.init();
+exports.startFullIndexByUser = functions
+  .region(config.location)
+  .firestore.document(config.startAlgoliaCollectionPath)
+  .onCreate(async (snap, context) => {
+    const newUserEmail = snap.data().email; // 새로 등록된 이메일
 
-//     logs.info("config.collectionPath", config.collectionPath);
-//     const docId = data["docId"] ?? null;
-//     const pastSuccessCount = (data["successCount"] as number) ?? 0;
-//     const pastErrorCount = (data["errorCount"] as number) ?? 0;
-//     // We also track the start time of the first invocation, so that we can report the full length at the end.
-//     const startTime = (data["startTime"] as number) ?? Date.now();
-//     let query: firebase.firestore.Query;
+    // 모든 문서를 색인하는 로직
+    const collectionRef = firestoreDB.collection(config.collectionPath);
+    const snapshot = await collectionRef.get();
 
-//     logs.info(
-//       "Is Collection Group?",
-//       config.collectionPath.indexOf("/") !== -1
-//     );
-//     if (config.collectionPath.indexOf("/") === -1) {
-//       query = firestoreDB.collection(config.collectionPath);
-//     } else {
-//       query = firestoreDB.collectionGroup(
-//         config.collectionPath.split("/").pop()
-//       );
-//     }
-//     query = query.limit(DOCS_PER_INDEXING);
+    const docs = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      data.objectID = doc.id; // Algolia에 필요한 objectID 설정
+      return data;
+    });
 
-//     logs.debug("docId?", docId);
-//     if (docId) {
-//       let queryCursor = query.where(FieldPath.documentId(), "==", docId);
-//       logs.debug("queryCursor?", queryCursor);
-
-//       const querySnapshot = await queryCursor.get();
-//       logs.debug("querySnapshot?", querySnapshot);
-//       logs.debug("querySnapshot.docs?", querySnapshot.docs);
-//       querySnapshot.docs.forEach((doc) => (query = query.startAfter(doc)));
-//     }
-
-//     logs.debug("query", query);
-//     const snapshot = await query.get();
-//     const promises = await Promise.allSettled(
-//       snapshot.docs.map((doc) => extract(doc, startTime))
-//     );
-//     logs.debug("promises.length", promises.length);
-//     (promises as any).forEach((v) => logs.info("v", v));
-//     const records = (promises as any)
-//       .filter((v) => v.status === "fulfilled")
-//       .map((v) => v.value);
-
-//     logs.info("records.length", records.length);
-//     const responses = await index.saveObjects(records, {
-//       autoGenerateObjectIDIfNotExist: true,
-//     });
-//     logs.debug("responses.objectIDs", responses.objectIDs);
-//     logs.info("responses.taskIDs", responses.taskIDs);
-
-//     const newSuccessCount = pastSuccessCount + records.length;
-//     const newErrorCount = pastErrorCount;
-
-//     if (snapshot.size === DOCS_PER_INDEXING) {
-//       const newCursor = snapshot.docs[snapshot.size - 1];
-//       const queue = getFunctions().taskQueue(
-//         `locations/${config.location}/functions/executeFullIndexOperation`,
-//         config.instanceId
-//       );
-//       await queue.enqueue({
-//         docId: newCursor.id,
-//         successCount: newSuccessCount,
-//         errorCount: newErrorCount,
-//         startTime: startTime,
-//       });
-//     } else {
-//       // No more documents to index, time to set the processing state.
-//       logs.fullIndexingComplete(newSuccessCount, newErrorCount);
-//       if (newErrorCount === 0) {
-//         return await runtime.setProcessingState(
-//           "PROCESSING_COMPLETE",
-//           `Successfully indexed ${newSuccessCount} documents in ${
-//             Date.now() - startTime
-//           }ms.`
-//         );
-//       } else if (newErrorCount > 0 && newSuccessCount > 0) {
-//         return await runtime.setProcessingState(
-//           "PROCESSING_WARNING",
-//           `Successfully indexed ${newSuccessCount} documents, ${newErrorCount} errors in ${
-//             Date.now() - startTime
-//           }ms. See function logs for specific error messages.`
-//         );
-//       }
-//       return await runtime.setProcessingState(
-//         "PROCESSING_FAILED",
-//         `Successfully indexed ${newSuccessCount} documents, ${newErrorCount} errors in ${
-//           Date.now() - startTime
-//         }ms. See function logs for specific error messages.`
-//       );
-//     }
-//   });
+    // Algolia에 문서 색인
+    return algoliaIndex
+      .saveObjects(docs)
+      .then(() => {
+        console.log("Documents indexed in Algolia");
+      })
+      .catch((error) => {
+        console.error("Error indexing documents in Algolia", error);
+      });
+  });
