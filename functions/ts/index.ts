@@ -34,6 +34,7 @@ import extract, {
   getAdditionalAlgoliaDataFullIndex,
   getObjectID,
   getPayload,
+  transformToAloglia,
 } from "./extract";
 import {
   areFieldsUpdated,
@@ -141,9 +142,9 @@ const handleDeleteDocument = async (deletedObjectID: string) => {
   }
 };
 
-// export const executeIndexOperation = functions.handler.firestore.document
+// export const executeIndexOperationCustom = functions.handler.firestore.document
 //   .onWrite(async (change: Change<DocumentSnapshot>, context: EventContext): Promise<void> => {
-export const executeIndexOperation = functions
+export const executeIndexOperationCustom = functions
   .region(config.location)
   .firestore.document(config.collectionPath)
   .onWrite(async (change, context: EventContext): Promise<void> => {
@@ -238,5 +239,23 @@ export const startFullIndexByUser = functions
     } catch (e) {
       console.error("An error occurred while processing documents: ", e);
       logs.error(e as Error);
+    }
+  });
+
+export const transformData = functions
+  .region(config.location)
+  .https.onRequest((request, response) => {
+    if (request.method !== "POST") {
+      response.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    try {
+      const payload = request.body.data;
+      const transformedPayload = transformToAloglia(payload);
+      response.json({ result: transformedPayload });
+    } catch (error) {
+      console.error("Error transforming data:", error);
+      response.status(500).send("Internal Server Error");
     }
   });

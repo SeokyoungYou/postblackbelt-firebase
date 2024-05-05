@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractFoFull = exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
+exports.transformToAloglia = exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
 const transform_1 = require("./transform");
 const util_1 = require("./util");
 const PAYLOAD_MAX_SIZE = 102400;
@@ -85,12 +85,22 @@ async function extract(snapshot, context) {
     }
 }
 exports.default = extract;
-async function extractFoFull(data) {
-    if ((0, util_1.getObjectSizeInBytes)(data) < PAYLOAD_MAX_SIZE) {
-        return data;
+const transformToAloglia = (payload) => {
+    const splitedObjectID = payload.objectID.split("/");
+    const transformed = {
+        objectID: payload.objectID,
+        title: payload.title,
+        content: payload.content,
+        diaryCategory: payload.diaryCategory,
+        techCategory: payload.techCategory,
+        link: payload.link,
+        userEmail: splitedObjectID[1],
+        diaryId: splitedObjectID[splitedObjectID.length - 1],
+    };
+    const size = (0, util_1.getObjectSizeInBytes)(transformed);
+    if (size > PAYLOAD_MAX_SIZE && transformed?.content) {
+        transformed.content = transformed.content.substring(0, transformed.content.length / 2);
     }
-    else {
-        throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
-    }
-}
-exports.extractFoFull = extractFoFull;
+    return transformed;
+};
+exports.transformToAloglia = transformToAloglia;

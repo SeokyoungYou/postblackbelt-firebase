@@ -104,10 +104,35 @@ export default async function extract(
   }
 }
 
-export async function extractFoFull(data: any): Promise<any> {
-  if (getObjectSizeInBytes(data) < PAYLOAD_MAX_SIZE) {
-    return data;
-  } else {
-    throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
+type Payload = {
+  title?: string;
+  content?: string;
+  diaryCategory: string;
+  techCategory?: string;
+  link?: string;
+  objectID: string; // diarysV2/{userEmail}/diaryV2/{diaryId}
+};
+
+export const transformToAloglia = (payload: Payload) => {
+  const splitedObjectID = payload.objectID.split("/");
+  const transformed = {
+    objectID: payload.objectID,
+    title: payload.title,
+    content: payload.content,
+    diaryCategory: payload.diaryCategory,
+    techCategory: payload.techCategory,
+    link: payload.link,
+    userEmail: splitedObjectID[1],
+    diaryId: splitedObjectID[splitedObjectID.length - 1],
+  };
+  const size = getObjectSizeInBytes(transformed);
+
+  if (size > PAYLOAD_MAX_SIZE && transformed?.content) {
+    transformed.content = transformed.content.substring(
+      0,
+      transformed.content.length / 2
+    );
   }
-}
+
+  return transformed;
+};

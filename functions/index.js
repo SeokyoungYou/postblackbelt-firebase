@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startFullIndexByUser = exports.executeIndexOperation = exports.indexStartFullIndex = exports.indexExecuteIndex = void 0;
+exports.transformData = exports.startFullIndexByUser = exports.executeIndexOperationCustom = exports.indexStartFullIndex = exports.indexExecuteIndex = void 0;
 const algoliasearch_1 = require("algoliasearch");
 const functions = require("firebase-functions");
 const firestore_1 = require("firebase-admin/firestore");
@@ -95,9 +95,9 @@ const handleDeleteDocument = async (deletedObjectID) => {
         logs.error(e);
     }
 };
-// export const executeIndexOperation = functions.handler.firestore.document
+// export const executeIndexOperationCustom = functions.handler.firestore.document
 //   .onWrite(async (change: Change<DocumentSnapshot>, context: EventContext): Promise<void> => {
-exports.executeIndexOperation = functions
+exports.executeIndexOperationCustom = functions
     .region(config_1.default.location)
     .firestore.document(config_1.default.collectionPath)
     .onWrite(async (change, context) => {
@@ -175,5 +175,22 @@ exports.startFullIndexByUser = functions
     catch (e) {
         console.error("An error occurred while processing documents: ", e);
         logs.error(e);
+    }
+});
+exports.transformData = functions
+    .region(config_1.default.location)
+    .https.onRequest((request, response) => {
+    if (request.method !== "POST") {
+        response.status(405).send("Method Not Allowed");
+        return;
+    }
+    try {
+        const payload = request.body.data;
+        const transformedPayload = (0, extract_1.transformToAloglia)(payload);
+        response.json({ result: transformedPayload });
+    }
+    catch (error) {
+        console.error("Error transforming data:", error);
+        response.status(500).send("Internal Server Error");
     }
 });
