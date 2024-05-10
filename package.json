@@ -7,7 +7,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npx tsc",
     "watch": "tsc --watch",
-    "deploy:full": "npm run build && firebase deploy --only functions:startFullIndexByUser",
     "deploy:transform": "npm run build && firebase deploy --only functions:transformData",
     "em:setup": "firebase setup:emulators:firestore",
     "emulators": "firebase emulators:start --only functions,firestore",

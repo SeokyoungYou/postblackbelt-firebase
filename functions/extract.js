@@ -15,41 +15,11 @@
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transformToAloglia = exports.getAdditionalAlgoliaDataFullIndex = exports.getObjectID = exports.getPayload = void 0;
+exports.transformToAloglia = void 0;
 const util_1 = require("./util");
 const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
 const trim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
-const getPayload = async (snapshot) => {
-    let payload = {
-        title: snapshot.get("title"),
-        content: snapshot.get("content"),
-        diaryCategory: snapshot.get("diaryCategory"),
-        techCategory: snapshot.get("techCategory"),
-        link: snapshot.get("link"),
-    };
-    // adding the objectId in the return to make sure to restore to original if changed in the post processing.
-    return payload;
-};
-exports.getPayload = getPayload;
-const getObjectID = (context) => {
-    const userEmail = context.params.userEmail;
-    const diaryId = context.params.diaryId;
-    return `diarysV2/${userEmail}/diaryV2/${diaryId}`;
-};
-exports.getObjectID = getObjectID;
-const getAdditionalAlgoliaDataFullIndex = (context, docId) => {
-    const eventTimestamp = Date.parse(context.timestamp);
-    const userEmail = context.params.userEmail;
-    const diaryId = docId;
-    return {
-        objectID: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
-        diaryId,
-        userEmail,
-        lastmodified: eventTimestamp,
-    };
-};
-exports.getAdditionalAlgoliaDataFullIndex = getAdditionalAlgoliaDataFullIndex;
 const transformToAloglia = (payload) => {
     const splitedObjectID = payload.objectID.split("/");
     const transformed = {

@@ -14,50 +14,11 @@
  * limitations under the License.
  */
 
-import { DocumentSnapshot } from "firebase-admin/firestore";
-
-import { EventContext } from "firebase-functions";
 import { getObjectSizeInBytes } from "./util";
 
 const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
 const trim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g;
-
-export const getPayload = async (snapshot: DocumentSnapshot): Promise<any> => {
-  let payload: {
-    [key: string]: boolean | string | number;
-  } = {
-    title: snapshot.get("title"),
-    content: snapshot.get("content"),
-    diaryCategory: snapshot.get("diaryCategory"),
-    techCategory: snapshot.get("techCategory"),
-    link: snapshot.get("link"),
-  };
-
-  // adding the objectId in the return to make sure to restore to original if changed in the post processing.
-  return payload;
-};
-
-export const getObjectID = (context: EventContext) => {
-  const userEmail = context.params.userEmail;
-  const diaryId = context.params.diaryId;
-  return `diarysV2/${userEmail}/diaryV2/${diaryId}`;
-};
-
-export const getAdditionalAlgoliaDataFullIndex = (
-  context: EventContext,
-  docId: string
-) => {
-  const eventTimestamp = Date.parse(context.timestamp);
-  const userEmail = context.params.userEmail;
-  const diaryId = docId;
-  return {
-    objectID: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
-    diaryId,
-    userEmail,
-    lastmodified: eventTimestamp,
-  };
-};
 
 type Payload = {
   title?: string;
