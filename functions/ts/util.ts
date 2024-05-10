@@ -14,58 +14,9 @@
  * limitations under the License.
  */
 
-import * as functions from "firebase-functions";
-import { DocumentSnapshot } from "firebase-admin/firestore";
-import { Config } from "./config";
-import * as logs from "./logs";
-import { valueProcessor } from "./processors";
-
-export enum ChangeType {
-  CREATE,
-  DELETE,
-  UPDATE,
-}
-
-export const getChangeType = (change: functions.Change<DocumentSnapshot>) => {
-  if (!change.after.exists) {
-    return ChangeType.DELETE;
-  }
-  if (!change.before.exists) {
-    return ChangeType.CREATE;
-  }
-  return ChangeType.UPDATE;
-};
-
 export const getObjectSizeInBytes = (object: [] | {}) => {
   const recordBuffer = Buffer.from(JSON.stringify(object));
   return recordBuffer.byteLength;
-};
-
-export const getFields = () => ["title", "content"];
-
-export const areFieldsUpdated = (
-  config: Config,
-  before: DocumentSnapshot,
-  after: DocumentSnapshot
-) => {
-  const fields = getFields();
-
-  logs.debug(`fields: ${fields}`);
-  // If fields are not configured, then execute update record.
-  if (fields.length === 0) {
-    return true;
-  }
-
-  // If fields are configured, then check the before and after data for the specified fields.
-  //  If any changes detected, then execute update record.
-  for (const field of fields) {
-    const [, beforeFieldValue] = valueProcessor(field, before.get(field));
-    const [, afterFieldValue] = valueProcessor(field, after.get(field));
-    if (JSON.stringify(beforeFieldValue) !== JSON.stringify(afterFieldValue)) {
-      return true;
-    }
-  }
-  return false;
 };
 
 export const isValidValue = (value) => {

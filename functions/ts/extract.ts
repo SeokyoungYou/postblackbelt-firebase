@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-import { DocumentData, DocumentSnapshot } from "firebase-admin/firestore";
+import { DocumentSnapshot } from "firebase-admin/firestore";
 
-import config from "./config";
-import * as logs from "./logs";
-import { dataProcessor, processObject, valueProcessor } from "./processors";
-import transform from "./transform";
-import { getObjectSizeInBytes, isValidValue } from "./util";
 import { EventContext } from "firebase-functions";
+import { getObjectSizeInBytes } from "./util";
 
 const PAYLOAD_MAX_SIZE = 102400;
 const PAYLOAD_TOO_LARGE_ERR_MSG = "Record is too large.";
@@ -39,28 +35,13 @@ export const getPayload = async (snapshot: DocumentSnapshot): Promise<any> => {
   };
 
   // adding the objectId in the return to make sure to restore to original if changed in the post processing.
-  return transform(payload);
+  return payload;
 };
 
 export const getObjectID = (context: EventContext) => {
   const userEmail = context.params.userEmail;
   const diaryId = context.params.diaryId;
   return `diarysV2/${userEmail}/diaryV2/${diaryId}`;
-};
-
-const getAdditionalAlgoliaData = (context: EventContext) => {
-  const eventTimestamp = Date.parse(context.timestamp);
-  const userEmail = context.params.userEmail;
-  const diaryId = context.params.diaryId;
-  return {
-    objectID: getObjectID(context),
-    diaryId,
-    userEmail,
-    lastmodified: {
-      _operation: "IncrementSet",
-      value: eventTimestamp,
-    },
-  };
 };
 
 export const getAdditionalAlgoliaDataFullIndex = (
@@ -74,35 +55,9 @@ export const getAdditionalAlgoliaDataFullIndex = (
     objectID: `diarysV2/${userEmail}/diaryV2/${diaryId}`,
     diaryId,
     userEmail,
-    lastmodified: {
-      _operation: "IncrementSet",
-      value: eventTimestamp,
-    },
+    lastmodified: eventTimestamp,
   };
 };
-
-export default async function extract(
-  snapshot: DocumentSnapshot,
-  context: EventContext
-): Promise<any> {
-  // Check payload size and make sure its within limits before sending for indexing
-  const payload = await getPayload(snapshot);
-
-  const additionalData = getAdditionalAlgoliaData(context);
-
-  const result = {
-    ...payload,
-    ...additionalData,
-  };
-
-  // FIXME: 넘어가면 content 빼기
-
-  if (getObjectSizeInBytes(result) < PAYLOAD_MAX_SIZE) {
-    return result;
-  } else {
-    throw new Error(PAYLOAD_TOO_LARGE_ERR_MSG);
-  }
-}
 
 type Payload = {
   title?: string;

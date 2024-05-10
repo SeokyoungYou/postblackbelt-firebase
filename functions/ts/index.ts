@@ -17,34 +17,19 @@
 
 import algoliaSearch from "algoliasearch";
 import * as functions from "firebase-functions";
-import { EventContext } from "firebase-functions";
-import {
-  DocumentData,
-  DocumentSnapshot,
-  getFirestore,
-} from "firebase-admin/firestore";
-import { getExtensions } from "firebase-admin/extensions";
-import { getFunctions } from "firebase-admin/functions";
+import { getFirestore } from "firebase-admin/firestore";
+
 import * as firebase from "firebase-admin";
-import { firestore } from "firebase-admin";
-// import FieldPath = firestore.FieldPath;
 
 import config from "./config";
-import extract, {
+import {
   getAdditionalAlgoliaDataFullIndex,
-  getObjectID,
   getPayload,
   transformToAloglia,
 } from "./extract";
-import {
-  areFieldsUpdated,
-  ChangeType,
-  getChangeType,
-  getObjectSizeInBytes,
-} from "./util";
+
 import { version } from "./version";
 import * as logs from "./logs";
-import { processObject } from "./processors";
 
 const DOCS_PER_INDEXING = 250;
 const clientExecuteIndex = algoliaSearch(
@@ -69,105 +54,6 @@ firebase.initializeApp();
 const db = getFirestore(config.databaseId);
 
 logs.init();
-
-const handleCreateDocument = async (
-  snapshot: DocumentSnapshot,
-  context: EventContext
-) => {
-  try {
-    const data = await extract(snapshot, context);
-
-    logs.debug({
-      ...data,
-    });
-
-    logs.createIndex(snapshot.id, data);
-    await indexExecuteIndex.partialUpdateObject(data, {
-      createIfNotExists: true,
-    });
-  } catch (e) {
-    logs.error(e as Error);
-  }
-};
-
-const handleUpdateDocument = async (
-  before: DocumentSnapshot,
-  after: DocumentSnapshot,
-  context: EventContext
-) => {
-  try {
-    if (areFieldsUpdated(config, before, after)) {
-      logs.debug("Detected a change, execute indexing");
-
-      const beforeData: DocumentData | undefined = await before.data();
-      // loop through the after data snapshot to see if any properties were removed
-      const undefinedAttrs = beforeData
-        ? Object.keys(beforeData).filter(
-            (key) => after.get(key) === undefined || after.get(key) === null
-          )
-        : [];
-      logs.debug("undefinedAttrs", undefinedAttrs);
-      // if no attributes were removed, then use partial update of the record.
-      if (undefinedAttrs.length === 0) {
-        const data = await extract(after, context);
-        logs.updateIndex(after.id, data);
-        logs.debug("execute partialUpdateObject");
-        await indexExecuteIndex.partialUpdateObject(data, {
-          createIfNotExists: true,
-        });
-      }
-      // if an attribute was removed, then use save object of the record.
-      else {
-        const data = await extract(after, context);
-
-        // delete null value attributes before saving.
-        undefinedAttrs.forEach((attr) => delete data[attr]);
-
-        logs.updateIndex(after.id, data);
-        logs.debug("execute saveObject");
-        await indexExecuteIndex.saveObject(data);
-      }
-    }
-  } catch (e) {
-    logs.error(e as Error);
-  }
-};
-
-const handleDeleteDocument = async (deletedObjectID: string) => {
-  try {
-    logs.deleteIndex(deletedObjectID);
-    await indexExecuteIndex.deleteObject(deletedObjectID);
-  } catch (e) {
-    logs.error(e as Error);
-  }
-};
-
-// export const executeIndexOperationCustom = functions.handler.firestore.document
-//   .onWrite(async (change: Change<DocumentSnapshot>, context: EventContext): Promise<void> => {
-export const executeIndexOperationCustom = functions
-  .region(config.location)
-  .firestore.document(config.collectionPath)
-  .onWrite(async (change, context: EventContext): Promise<void> => {
-    logs.start();
-
-    const changeType = getChangeType(change);
-
-    switch (changeType) {
-      case ChangeType.CREATE:
-        await handleCreateDocument(change.after, context);
-        break;
-      case ChangeType.DELETE:
-        const objectID = getObjectID(context);
-        await handleDeleteDocument(objectID);
-        break;
-      case ChangeType.UPDATE:
-        await handleUpdateDocument(change.before, change.after, context);
-        break;
-      default: {
-        throw new Error(`Invalid change type: ${changeType}`);
-      }
-    }
-  });
 
 export const startFullIndexByUser = functions
   .region(config.location)
@@ -230,7 +116,7 @@ export const startFullIndexByUser = functions
     logs.info("Processing documents...", results);
 
     try {
-      // TODO: 인덱싱 100개씩만 처리하도록 수정
+      // TODO: 인덱싱 250개씩만 처리하도록 수정
 
       await indexStartFullIndex.partialUpdateObjects(results, {
         createIfNotExists: true,
