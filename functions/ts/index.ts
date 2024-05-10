@@ -32,14 +32,6 @@ import { version } from "./version";
 import * as logs from "./logs";
 
 const DOCS_PER_INDEXING = 250;
-const clientExecuteIndex = algoliaSearch(
-  config.algoliaAppId,
-  config.algoliaAPIKeyExecuteIndexOperation
-);
-clientExecuteIndex.addAlgoliaAgent("firestore_integration", version);
-export const indexExecuteIndex = clientExecuteIndex.initIndex(
-  config.algoliaIndexName
-);
 
 const clientStartFullIndex = algoliaSearch(
   config.algoliaAppId,
